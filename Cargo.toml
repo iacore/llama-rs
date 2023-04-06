@@ -10,5 +10,5 @@ repository = "https://github.com/iacore/llama-rs"
 
 [dependencies]
 derive_more = "0.99.17"
-llama-sys = "0.1.1"
+llama-sys = "0.1.2"
 thiserror = "1.0.40"
