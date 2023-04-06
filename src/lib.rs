@@ -70,18 +70,29 @@ impl Context {
         let ctx = self.0.as_ptr();
         unsafe { sys::llama_set_kv_cache(ctx, x.data.as_ptr(), x.data.len(), x.token_count) }
     }
-    
+}
+
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("opaque eval error (hidden from llama.cpp API)")]
+pub struct EvalError;
+
+impl Context {
     /// Run the llama inference to obtain the logits and probabilities for the next token.
     /// `tokens` is the provided batch of new tokens to process
     /// `n_past` is the number of tokens to use from previous eval calls
-    pub fn eval(&mut self, tokens: &[Token], n_past: c_int, n_threads: c_int) -> Result<(), ()> {
+    pub fn eval(
+        &mut self,
+        tokens: &[Token],
+        n_past: c_int,
+        n_threads: c_int,
+    ) -> Result<(), EvalError> {
         let ctx = self.0.as_ptr();
         unsafe {
             let tokens: &[sys::llama_token] = std::mem::transmute(tokens); // jank: not sure if this is valid usage
             if sys::llama_eval(ctx, tokens.as_ptr(), tokens.len() as i32, n_past, n_threads) == 0 {
                 Ok(())
             } else {
-                Err(())
+                Err(EvalError)
             }
         }
     }
@@ -106,17 +117,28 @@ impl Token {
 
 pub struct TooManyTokens(
     /// should have this many tokens
-    pub usize
+    pub usize,
 );
 
 impl Context {
     // Convert the provided text into tokens.
     // The tokens pointer must be large enough to hold the resulting tokens.
-    pub fn tokenize<'a>(&self, text: &CStr, buffer: &'a mut [Token], add_bos: bool) -> Result<&'a mut [Token], TooManyTokens> {
+    pub fn tokenize<'a>(
+        &self,
+        text: &CStr,
+        buffer: &'a mut [Token],
+        add_bos: bool,
+    ) -> Result<&'a mut [Token], TooManyTokens> {
         let ctx = self.0.as_ptr();
         let buffer: &mut [sys::llama_token] = unsafe { std::mem::transmute(buffer) }; // jank: not sure if this is valid usage
         let ret = unsafe {
-            sys::llama_tokenize(ctx, text.as_ptr(), buffer.as_mut_ptr(), buffer.len() as c_int, add_bos)
+            sys::llama_tokenize(
+                ctx,
+                text.as_ptr(),
+                buffer.as_mut_ptr(),
+                buffer.len() as c_int,
+                add_bos,
+            )
         };
         let buffer: &mut [Token] = unsafe { std::mem::transmute(buffer) }; // jank: not sure if this is valid usage
         if ret >= 0 {
@@ -149,7 +171,8 @@ impl Context {
         let ctx = self.0.as_ptr();
         unsafe { CStr::from_ptr(sys::llama_token_to_str(ctx, token.0)) }
     }
-    pub fn sample_top_p_top_k(&mut self,
+    pub fn sample_top_p_top_k(
+        &mut self,
         last_n_tokens: &[Token],
         top_k: c_int,
         top_p: f32,
@@ -159,7 +182,15 @@ impl Context {
         let ctx = self.0.as_ptr();
         unsafe {
             let last_n_tokens: &[sys::llama_token] = std::mem::transmute(last_n_tokens); // jank: not sure if this is valid usage
-            Token(sys::llama_sample_top_p_top_k(ctx, last_n_tokens.as_ptr(), last_n_tokens.len() as c_int, top_k, top_p, temp, repeat_penalty))
+            Token(sys::llama_sample_top_p_top_k(
+                ctx,
+                last_n_tokens.as_ptr(),
+                last_n_tokens.len() as c_int,
+                top_k,
+                top_p,
+                temp,
+                repeat_penalty,
+            ))
         }
     }
     pub fn print_timings(&self) -> () {
