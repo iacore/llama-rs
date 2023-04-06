@@ -2,6 +2,9 @@
 name = "llama"
 version = "0.1.0"
 edition = "2021"
+description = "half-safe bindings for llama.cpp"
+license = "MIT"
+repository = "https://github.com/iacore/llama-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
