@@ -101,7 +101,9 @@ impl Token {
 }
 
 /// Represents `tokenize` Error
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("buffer not big enough, need len>={0}")]
+
 pub struct TooManyTokens(
     /// should have this many tokens
     pub usize
